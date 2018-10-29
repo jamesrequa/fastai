@@ -73,8 +73,10 @@ def arrays_split(mask:NPArrayMask, *arrs:NPArrayableList)->SplitArrayList:
     mask = array(mask)
     return list(zip(*[(a[mask],a[~mask]) for a in map(np.array, arrs)]))
 
-def random_split(valid_pct:float, *arrs:NPArrayableList)->SplitArrayList:
+def random_split(seed:int, valid_pct:float, *arrs:NPArrayableList)->SplitArrayList:
     "Randomly split `arrs` with `valid_pct` ratio. good for creating validation set."
+    if seed is not None:
+        np.random.seed(seed)
     assert (valid_pct>=0 and valid_pct<=1), 'Validation set percentage should be between 0 and 1'
     is_train = np.random.uniform(size=(len(arrs[0]),)) > valid_pct
     return arrays_split(is_train, *arrs)

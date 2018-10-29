@@ -282,55 +282,63 @@ class ImageDataBunch(DataBunch):
             path/test,classes=datasets[0].classes))
         return cls.create(*datasets, path=path, **kwargs)
 
-
     @classmethod
-    def from_df(cls, path:PathOrStr, df:pd.DataFrame, folder:PathOrStr='.', sep=None, valid_pct:float=0.2,
-            fn_col:int=0, label_col:int=1, test:Optional[PathOrStr]=None, suffix:str=None, **kwargs:Any)->'ImageDataBunch':
+    def from_df(cls, path: PathOrStr, df: pd.DataFrame, folder: PathOrStr = '.', sep=None, valid_pct: float = 0.2,
+                seed=None,
+                fn_col: int = 0, label_col: int = 1, test: Optional[PathOrStr] = None, suffix: str = None,
+                **kwargs: Any) -> 'ImageDataBunch':
         "Create from a DataFrame."
         path = Path(path)
         fnames, labels = _df_to_fns_labels(df, suffix=suffix, label_delim=sep, fn_col=fn_col, label_col=label_col)
         if sep:
             classes = uniqueify(np.concatenate(labels))
             datasets = ImageMultiDataset.from_folder(path, folder, fnames, labels, valid_pct=valid_pct, classes=classes)
-            if test: datasets.append(ImageMultiDataset.from_single_folder(path/test, classes=datasets[0].classes))
+            if test: datasets.append(ImageMultiDataset.from_single_folder(path / test, classes=datasets[0].classes))
         else:
-            folder_path = (path/folder).absolute()
-            (train_fns,train_lbls), (valid_fns,valid_lbls) = random_split(valid_pct, f'{folder_path}/' + fnames, labels)
+            folder_path = (path / folder).absolute()
+            (train_fns, train_lbls), (valid_fns, valid_lbls) = random_split(seed, valid_pct, f'{folder_path}/' + fnames,
+                                                                            labels)
             classes = uniqueify(labels)
             datasets = [ImageClassificationDataset(train_fns, train_lbls, classes)]
             datasets.append(ImageClassificationDataset(valid_fns, valid_lbls, classes))
-            if test: datasets.append(ImageClassificationDataset.from_single_folder(Path(path)/test, classes=classes))
+            if test: datasets.append(ImageClassificationDataset.from_single_folder(Path(path) / test, classes=classes))
         return cls.create(*datasets, path=path, **kwargs)
 
     @classmethod
-    def from_csv(cls, path:PathOrStr, folder:PathOrStr='.', sep=None, csv_labels:PathOrStr='labels.csv', valid_pct:float=0.2,
-            fn_col:int=0, label_col:int=1, test:Optional[PathOrStr]=None, suffix:str=None,
-            header:Optional[Union[int,str]]='infer', **kwargs:Any)->'ImageDataBunch':
+    def from_csv(cls, path: PathOrStr, folder: PathOrStr = '.', sep=None, csv_labels: PathOrStr = 'labels.csv',
+                 valid_pct: float = 0.2,
+                 seed=None, fn_col: int = 0, label_col: int = 1, test: Optional[PathOrStr] = None, suffix: str = None,
+                 header: Optional[Union[int, str]] = 'infer', **kwargs: Any) -> 'ImageDataBunch':
         "Create from a csv file."
         path = Path(path)
-        df = pd.read_csv(path/csv_labels, header=header)
-        return cls.from_df(path, df, folder=folder, sep=sep, valid_pct=valid_pct, test=test,
-                fn_col=fn_col, label_col=label_col, suffix=suffix, header=header, **kwargs)
+        df = pd.read_csv(path / csv_labels, header=header)
+        return cls.from_df(path, df, folder=folder, sep=sep, valid_pct=valid_pct, seed=seed, test=test,
+                           fn_col=fn_col, label_col=label_col, suffix=suffix, header=header, **kwargs)
 
     @classmethod
-    def from_lists(cls, path:PathOrStr, fnames:FilePathList, labels:Collection[str], valid_pct:int=0.2, test:str=None, **kwargs):
+    def from_lists(cls, path: PathOrStr, fnames: FilePathList, labels: Collection[str], valid_pct: int = 0.2, seed=None,
+                   test: str = None, **kwargs):
         classes = uniqueify(labels)
-        train,valid = random_split(valid_pct, fnames, labels)
+        train, valid = random_split(seed, valid_pct, fnames, labels)
         datasets = [ImageClassificationDataset(*train, classes),
                     ImageClassificationDataset(*valid, classes)]
-        if test: datasets.append(ImageClassificationDataset.from_single_folder(Path(path)/test, classes=classes))
+        if test: datasets.append(ImageClassificationDataset.from_single_folder(Path(path) / test, classes=classes))
         return cls.create(*datasets, path=path, **kwargs)
 
     @classmethod
-    def from_name_func(cls, path:PathOrStr, fnames:FilePathList, label_func:Callable, valid_pct:int=0.2, test:str=None, **kwargs):
+    def from_name_func(cls, path: PathOrStr, fnames: FilePathList, label_func: Callable, valid_pct: int = 0.2,
+                       seed=None, test: str = None, **kwargs):
         labels = [label_func(o) for o in fnames]
-        return cls.from_lists(path, fnames, labels, valid_pct=valid_pct, test=test, **kwargs)
+        return cls.from_lists(path, fnames, labels, valid_pct=valid_pct, seed=seed, test=test, **kwargs)
 
     @classmethod
-    def from_name_re(cls, path:PathOrStr, fnames:FilePathList, pat:str, valid_pct:int=0.2, test:str=None, **kwargs):
+    def from_name_re(cls, path: PathOrStr, fnames: FilePathList, pat: str, valid_pct: int = 0.2, seed=None,
+                     test: str = None, **kwargs):
         pat = re.compile(pat)
+
         def _get_label(fn): return pat.search(str(fn)).group(1)
-        return cls.from_name_func(path, fnames, _get_label, valid_pct=valid_pct, test=test, **kwargs)
+
+        return cls.from_name_func(path, fnames, _get_label, valid_pct=valid_pct, seed=seed, test=test, **kwargs)
 
     def batch_stats(self, funcs:Collection[Callable]=None)->Tensor:
         "Grab a batch of data and call reduction function `func` per channel"
